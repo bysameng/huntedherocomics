@@ -1,0 +1,87 @@
+#!/bin/bash
+
+if [[ $# -eq 0 ]] ; then
+	echo "Usage: generatepages directory_of_images"
+	echo "Exiting."
+	exit
+fi
+
+STARTTIME=$(date +%s)
+FILECOUNT=0
+STATUSMESSAGE="Generated pages for"
+
+PREVLINK='<a href="PREVPAGE.html"><<\/a>'
+NEXTLINK='<a href="NEXTPAGE.html">><\/a>'
+NCOMLINK='<a href = "NEXTPAGE.html"><img class = "coverart" src = "CURRENTPAGE.jpg"><\/a>'
+NEWCLINK='<img class = "coverart" src = "CURRENTPAGE.jpg">'
+
+date=$(date)
+echo "$date"
+
+
+
+#for each argument passed in, generate
+for ARG in $* ; do
+
+echo "Generating pages for $ARG"
+#for each jpg file in each argument folder
+for f in $ARG/*.jpg
+do
+	if test -f "$f"
+	then
+		echo "Processing $f"
+		((FILECOUNT++))
+
+		#process the filename and get each variable
+		name=${f##*/}
+		name=${name%%.jpg}
+		issuenum=${name%%-*}
+		issuenum=${issuenum##i}
+		pagenum=${name##*-}
+		let nextnum=pagenum+1
+		nextpage=${name%%-*}
+		nextpage="$nextpage-$nextnum"
+		let prevnum=pagenum-1
+		prevpage=${name%%-*}
+		prevpage="$prevpage-$prevnum"
+
+		#echo "$pagenum"
+		cp template.html $ARG/$name.html
+		#echo "$nextpage.jpg"
+
+		#the actual replacements
+
+		#only if there is a nextpage do we put the nextpagelink
+		if test -f "$ARG/$nextpage.jpg" ; then
+			sed -i.bak s/NEXTPAGE/$nextpage/g $ARG/$name.html
+		else
+			sed -i.bak "s/$NCOMLINK/$NEWCLINK/g" $ARG/$name.html
+			sed -i.bak "s/$NEXTLINK/>/g" $ARG/$name.html
+		fi
+
+		#only if there is a previouspage
+		if test -f "$ARG/$prevpage.jpg" ; then
+			sed -i.bak s/PREVPAGE/$prevpage/g $ARG/$name.html
+		else
+			sed -i.bak "s/$PREVLINK/</g" $ARG/$name.html
+		fi
+
+		#happens for every file
+		sed -i.bak "s/CURRENTPAGE/$name/g;s/ISSUENUM/$issuenum/g;s/PAGENUM/$pagenum/g;s/DATE/$date/g" $ARG/$name.html
+
+		#remove the backup
+		rm "$ARG/$name.html.bak"
+	fi
+done
+STATUSMESSAGE="$STATUSMESSAGE $ARG"
+done
+
+
+ENDTIME=$(date +%s)
+TIMEELAPSED=$((ENDTIME-STARTTIME))
+
+echo "$STATUSMESSAGE"
+echo "Created $FILECOUNT pages in $TIMEELAPSED seconds."
+
+echo "Done. Exiting..."
+
